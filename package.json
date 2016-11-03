@@ -1,0 +1,28 @@
+{
+  "name": "awync",
+  "version": "1.0.0",
+  "description": "Lightweight async / await library for NodeJs (and/or) Browsers",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha tests --recursive"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tlghn/awync.git"
+  },
+  "keywords": [
+    "async",
+    "await",
+    "generator",
+    "generator-function"
+  ],
+  "author": "Tolgahan Albayrak",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tlghn/awync/issues"
+  },
+  "homepage": "https://github.com/tlghn/awync#readme",
+  "devDependencies": {
+    "chai": "^3.5.0"
+  }
+}
