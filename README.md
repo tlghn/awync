@@ -1,5 +1,6 @@
 # Awync
-Lightweight async / await module for NodeJS (and / or) Browsers **(#100# lines only)**
+Lightweight async / await module for NodeJS (and / or) Browsers 
+**(unminified version is only 173 lines)**
 
 You have trouble with NodeJS's callback hell, don't you?
 
@@ -43,7 +44,7 @@ So, Awync takes advantage of this pattern. (BTW, **awync** is made with **AW**ai
 - Pushes the result as next **yield** result.
 - Executes each yield iteration next after previous yield result.
 
-### Usage ?
+### Usage
 
 #### Basic Usage
 It should be simple as possible.
@@ -72,7 +73,36 @@ It should be simple as possible.
     
 ```
 
-#### How about Promises ?
+
+#### Error handling
+
+Only the root generator is responsible for error handling. 
+So a simple try catch will be enough for all!
+
+
+```
+    const awync = require('awync');
+    const fs = awync({someKey: require('fs')}).someKey;
+    
+    awync(function *() {
+        var file = './someFileThat.notExist';
+        try{
+            var stats = yield fs.lstat(file);
+        }catch (err){
+            console.log(err.message);
+            // File not found!
+            return someFunction();
+        }
+        
+        // Interesting! File is exist. Lets delete it!
+        yield fs.unlink(file);
+    });
+    
+```
+
+
+
+#### Promises
 
 ```
     const awync = require('awync');
@@ -111,7 +141,7 @@ It should be simple as possible.
 
 Simple, right ?
 
-#### How about inner generators?
+#### Inner Generators
 
 ```
     const awync = require('awync');
@@ -147,37 +177,105 @@ Simple, right ?
 ```
 
 
+#### Iterables, Arrays and Callbacks
 
-#### How about errors ?
-
-Only the root method is resposible for error handling. 
-So a simple try catch will be enough for all!
+Please notice the usage of `awync.iterator` and `awync.callback`
 
 ```
     const awync = require('awync');
 
-    function *generatorA() {
-        throw new Error("test");
+    function asyncLog(message, startDate, delay, next) {
+        delay = Math.floor(delay);
+        setTimeout(function () {
+            console.log(message + '[Completed after %sms (Delay was %sms)]', Date.now() - startDate, delay);
+            next();
+        }, delay);
     }
     
-    function *generatorB() {
-        yield generatorA();
+    var array = [];
+    var i;
+    for(i=0; i<20; i++){
+        array.push(asyncLog);
     }
-    
-    function *generatorC() {
-        yield generatorB();
+    var set = new Set();
+    for(i=0; i<20; i++){
+        // Set accepts unique values, 
+        // And function.bind generates new reference
+        set.add(asyncLog.bind());
     }
     
     awync(function *() {
-        try{
-            yield generatorC();
-        }catch (err){
-            console.log(err.message);
-            // Output will be "test";
+        var date = Date.now();
+    
+        for(let callback of awync(awync.iterator, array)()){
+            yield callback('Message from Array', date, 100);
         }
+    
+        console.log('\n------------- ARRAY ITERATOR COMPLETED ------------------\n');
+    
+        for(let callback of awync(set)()){
+            yield callback('Message from Set', date, 150);
+        }
+    
+        console.log('\n------------- SET ITERATOR COMPLETED ------------------\n');
+    
+        yield awync(awync.callback, asyncLog)('Message from Callback', date, 200);
+    
+        console.log('\n------------- CALLBACK COMPLETED ------------------\n');
+    
+        console.log("Done! It should completed within %sms but it completed within %sms", (array.length * 100) + (set.size * 150) + 200, Date.now() - date);
     });
     
 ```
+
+
+#### Parallel Execution
+
+```
+    const awync = require('awync');
+
+    var executors = [
+        function *() {
+            yield awync(awync.callback, function (next) {
+                setTimeout(function () {
+                    console.log("Executor 1");
+                    next();
+                }, 1000);
+            })();
+        },
+        function *() {
+            yield awync(awync.callback, function (next) {
+                setTimeout(function () {
+                    console.log("Executor 2");
+                    next();
+                }, 500);
+            })();
+        },
+        function *() {
+            yield awync(awync.callback, function (next) {
+                setTimeout(function () {
+                    console.log("Executor 3");
+                    next();
+                }, 700);
+            })();
+        }
+    ];
+    
+    awync(executors);
+    
+    // Output will be in this order: Executor 2, Executor 3, Executor 1
+    
+```
+
+
+## Change Log
+
+- 1.1.0
+    - Added Iterator and Callback support
+    - Added support for chained references 
+        `yield await.someObject.someReference.someOtherReference.someAsyncCallbac()` now works!
+- 1.0.0
+    - Initial release
 
 
 ### Any issues or new ideas ? 

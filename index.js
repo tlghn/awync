@@ -3,11 +3,24 @@
  */
 "use strict";
 const proxies = new Map();
+const ITER = Symbol('ITER');
+const VAL = Symbol('VAL');
+const iterator = Symbol('iterator');
+const callback = Symbol('callback');
 
-function awaiter(obj) {
+function awaiter(obj, noCache) {
+    if(typeof obj === 'function'){
+        return awaiter({obj}, true).obj;
+    }
+
     if(proxies.has(obj)){
         return proxies.get(obj);
     }
+
+    if(!obj || typeof obj !== 'object' || Array.isArray(obj) || typeof obj[Symbol.iterator] === 'function'){
+        return obj;
+    }
+
     var proxy = new Proxy(obj, {
         get: function (target, prop) {
             var v = target[prop];
@@ -27,10 +40,14 @@ function awaiter(obj) {
                     });
                 };
             }
+
+            return awaiter(v, true);
         }
     });
 
-    proxies.set(obj, proxy);
+    if(!noCache){
+        proxies.set(obj, proxy);
+    }
     return proxy;
 }
 
@@ -85,6 +102,23 @@ function run(genFunc) {
 }
 
 function awync(a) {
+    switch (a){
+        case iterator:
+            a = arguments[1];
+            if(!a) break;
+            return function *() {
+                for(let item of this){
+                    yield awaiter(item, true);
+                }
+            }.bind(a);
+        case callback:
+            a = arguments[1];
+            if(typeof a !== 'function') {
+                throw new SyntaxError('Second argument should be callback funcion');
+            }
+            return awaiter(a);
+    }
+
     if(a instanceof Promise){
         return run(function *(a) {
             yield a;
@@ -98,10 +132,15 @@ function awync(a) {
             yield a();
         }.bind(null, a));
     }
-    if(typeof a === 'object'){
+    if(typeof a === 'object' && a !== null){
         if(Array.isArray(a)){
             return a.map(item => awync(item));
         }
+
+        if(typeof a[Symbol.iterator] === 'function'){
+            return awync(iterator, a);
+        }
+
         return Object.keys(a).reduce(
             (prev, cur) => {
                 prev[cur] = awaiter(a[cur]);
@@ -110,6 +149,25 @@ function awync(a) {
             {}
         );
     }
+
     throw new SyntaxError('Object, function or array expected');
 }
+awync.iterator = iterator;
+awync.callback = callback;
+Object.defineProperties(awync, {
+    iterator: {
+        value: iterator,
+        __proto__: null,
+        enumerable: false,
+        writable: false,
+        configurable: false
+    },
+    callback: {
+        value: callback,
+        __proto__: null,
+        enumerable: false,
+        writable: false,
+        configurable: false
+    }
+});
 module.exports = awync;
