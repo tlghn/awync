@@ -10,6 +10,9 @@ const callback = Symbol('callback');
 
 function awaiter(obj, noCache) {
     if(typeof obj === 'function'){
+        if(isGeneratorFunc(obj)){
+            return obj;
+        }
         return awaiter({obj}, true).obj;
     }
 
@@ -25,6 +28,11 @@ function awaiter(obj, noCache) {
         get: function (target, prop) {
             var v = target[prop];
             if(typeof v === 'function'){
+
+                if(isGeneratorFunc(v)){
+                    return v;
+                }
+
                 return function *() {
                     var args = Array.prototype.slice.call(arguments);
                     yield new Promise((resolve, reject) => {
@@ -40,6 +48,7 @@ function awaiter(obj, noCache) {
                     });
                 };
             }
+
 
             return awaiter(v, true);
         }
@@ -63,23 +72,34 @@ function isGeneratorObj(a) {
 
 function run(genFunc) {
     var rootObj = genFunc();
+    var timeout = setTimeout(() =>{}, 0x7FFFFFFF);
+    function exit(result) {
+        clearTimeout(timeout);
+        if(result instanceof Error){
+            setTimeout(err => rootObj.throw(err), 0, result);
+        }
+    }
+
     return (function doRun(genObj, cb) {
         function next(prev) {
             if(prev instanceof Error){
-                return setTimeout(function (err) {
-                    rootObj.throw(err);
-                }, 0, prev);
+                return exit(prev);
             }
             var yielded;
             try{
                 yielded = genObj.next(prev);
             }catch (err){
-                return setTimeout(function (err) {
-                    rootObj.throw(err);
-                }, 0, err);
+                return exit(err);
             }
             if(yielded.done){
-                if(cb) cb(prev);
+                if(cb) {
+                    return cb(prev);
+                }
+
+                if(genObj === rootObj){
+                    return exit(prev);
+                }
+
                 return;
             }
             if(isGeneratorObj(yielded.value)){

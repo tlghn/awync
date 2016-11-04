@@ -270,6 +270,8 @@ Please notice the usage of `awync.iterator` and `awync.callback`
 
 ## Change Log
 
+- 1.1.1
+    - Bug fix: Awaiter should only wrap non generator functions
 - 1.1.0
     - Added Iterator and Callback support
     - Added support for chained references 
