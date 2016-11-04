@@ -39,9 +39,22 @@ function awaiter(obj, noCache) {
                         args.push(function () {
                             var response = Array.prototype.slice.call(arguments);
                             if(response[0] instanceof Error){
-                                reject(response.length <= 2 ? response[0] : response);
+                                response[0].args = response;
+                                reject(response[0]);
                             } else {
-                                resolve(response.length <= 2 ? response[1] : response);
+                                switch (response.length){
+                                    case 0:
+                                        return resolve();
+                                    case 1:
+                                        return resolve(response[0]);
+                                    case 2:
+                                        if(response[0] === null || response[0] === void 0){
+                                            return resolve(response[1]);
+                                        }
+                                        return resolve(response);
+                                    default:
+                                        return resolve(response);
+                                }
                             }
                         });
                         v.apply(target, args);
@@ -122,6 +135,11 @@ function run(genFunc) {
 }
 
 function awync(a) {
+
+    if(!arguments.length){
+        return awaiter;
+    }
+
     switch (a){
         case iterator:
             a = arguments[1];
@@ -134,7 +152,7 @@ function awync(a) {
         case callback:
             a = arguments[1];
             if(typeof a !== 'function') {
-                throw new SyntaxError('Second argument should be callback funcion');
+                throw new SyntaxError('Second argument should be callback function');
             }
             return awaiter(a);
     }

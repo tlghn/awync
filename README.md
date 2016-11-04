@@ -1,6 +1,5 @@
 # Awync
 Lightweight async / await module for NodeJS (and / or) Browsers 
-**(unminified version is only 173 lines)**
 
 You have trouble with NodeJS's callback hell, don't you?
 
@@ -11,6 +10,99 @@ You have trouble with NodeJS's callback hell, don't you?
 - Fluent await operations with generators
 - Simple usage. 
 - It does not have any side effects. 
+
+
+### Getting Started
+
+There is a common problem with NodeJS called like "callback hell"
+
+It is something like:
+```
+    const fs = require('fs');
+    function updateFile(file, done){
+        fs.access(file, fs.F_OK, function(err, result){
+            if(err) return done(err);
+    
+            fs.readFile(file, 'utf8', function(err, fileData) {
+                if(err) return done(err);
+                
+                // do something with file data then update
+                
+                fs.writeFile(file, 'utf8', fileData, function(err) {
+                    if(err) return done(err);
+                    done();
+                });
+            });
+        });
+    }
+    
+    updateFile(file, function(err){
+        if(err){
+            return console.log('Error %s', err)
+        }
+        console.log('saved');
+    });
+```
+
+
+On ES7 (aka ES2017) this issue will be solved with async & await operations.
+The proposed pattern is like this:
+
+```
+    const fs = require('fs');
+    async function updateFile(file) {
+        await fs.accessAsync(file);
+        var fileData = await fs.readFileAsync(file, 'utf8');
+        // do something with fileData
+        await fs.writeFileAsync(file, 'utf8');
+    }
+    
+    (async function() {
+        try{
+            await updateFile(file);
+            console.log('saved');
+        }catch(err){
+            console.log('Error %s', err)
+        }
+    })();
+
+```
+
+Easy, right ?
+
+But, NodeJS currently does not have support for ES7 syntax.
+There are many other solutions focused on this issue. 
+Most common solution is transpiling ES7 code to supported environment (currently it is ES6)
+Since it is not natively supported, I do not prefer that.
+
+Then, What is my solution ?
+
+This tiny module aiming to cover this issue by using ES6's generators.
+With awync the code above will be written like this:
+
+```
+    const awync = require('awync');
+    const fs = awync()(require('fs'));
+    
+    function *updateFile(file) {
+        yield await.fs.access(file);
+        var fileData = yield fs.readFile(file, 'utf8');
+        // do something with fileData
+        yield fs.writeFile(file, 'utf8');
+    }
+    
+    awync(function*(){
+        try{
+            yield updateFile(file);
+            console.log('saved');
+        }catch(err){
+            console.log('Error %s', err)
+        }
+    });
+
+```
+
+
 
 
 ### Installation
@@ -43,6 +135,50 @@ So, Awync takes advantage of this pattern. (BTW, **awync** is made with **AW**ai
 - Executes that promise in a **Generator Function** (function*(){})
 - Pushes the result as next **yield** result.
 - Executes each yield iteration next after previous yield result.
+
+
+### How CALLBACKs will be yielded ?
+
+
+When you await a CALLBACK the result will be
+- If err argument is instance of Error then generator will throw that error and will cancel current execution scope.
+And all of passed arguments (including err argument) will be attached to the error with name "args". so, check `err.args` for all arguments
+- If err argument is null or undefined then result parameter will be yielded.
+
+
+```
+    try{
+        var a = await.fs.lstat(filename);
+        // result is set to a
+    } catch (err) {
+        // err is here
+        // see err.args for all arguments passed to lstat function
+    }
+```
+
+
+- If err argument does not fit the rules above then yielded value will be an array of all passed arguments
+
+```
+    // npm i awync-events --save
+    
+    const EventEmitter = require('awync-events');
+    var ee = new EventEmitter();
+
+    awync(function *(){
+        var args = yield ee.when.test();
+        console.log(args);
+        // output will be 1, 2, 3, 4, 5
+    });
+    
+    setTimeout(function(){
+        ee.emit('test', 1,2,3,4,5);
+    }, 1000);
+```
+
+
+
+
 
 ### Usage
 
@@ -269,7 +405,8 @@ Please notice the usage of `awync.iterator` and `awync.callback`
 
 
 ## Change Log
-
+- 1.1.2
+    - Better promise handling
 - 1.1.1
     - Bug fix: Awaiter should only wrap non generator functions
 - 1.1.0
@@ -283,3 +420,7 @@ Please notice the usage of `awync.iterator` and `awync.callback`
 ### Any issues or new ideas ? 
 
 Fork on github: [https://github.com/tlghn/awync.git](https://github.com/tlghn/awync.git)
+
+### Releated Links
+
+- **[awync-events](https://www.npmjs.com/package/awync-events)**: Awync EventEmitter module
