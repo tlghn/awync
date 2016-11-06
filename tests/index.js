@@ -6,193 +6,116 @@ const chai = require('chai');
 const expect = chai.expect;
 const should = chai.should();
 const assert = chai.assert;
-const awync = require('../');
-const fs = require('fs');
+const {indent, outdent, comment} = require('./_init');
 
-describe('Initialization', function () {
-    it('Create Awaiter', function () {
-        const awaiter = awync({fs});
+describe('API', function () {
 
-        should.exist(awaiter);
-        should.exist(awaiter.fs);
-        expect(awaiter.fs.lstat.constructor.name).to.equal('GeneratorFunction');
-    });
-});
+    describe('Calling awync without arguments: awync()', function () {
 
-describe('Runtime', function () {
-    it('Should throw SyntaxError', function () {
-        try {
-            awync(true);
-            assert.fail();
-        }catch (err) {
-            assert.instanceOf(err, SyntaxError);
-        }
-    });
+        comment(
+            'When you call awync without arguments, call will return as a ' +
+            'function named "awaiter".\nAwaiter function is designed for ' +
+            'creating generators. That generators is required to simulate ' +
+            'await by using yield statement'
+        );
 
-    it('Should accept inline functions', function (done) {
-        awync(function () {
-            done();
+        it('!awync()', function () {
+
+            const awync = require('../');
+            let awaiter = awync();
+            assert(typeof awaiter === 'function');
+            assert(awaiter.length === 3);
         });
-    });
 
-    it('Should accept generators', function (done) {
-        awync(function *() {
-            done();
-        });
-    });
+        describe('Awaiter Function', function () {
 
-    it('Should accept generator array', function (done) {
-        awync([
-            function *() {
+            comment('Signature: function awaiter(obj, target, noCache){}');
 
-            },
-            function *() {
-                done();
-            }
-        ]);
-    });
+            comment('Awaiter function takes three parameters. All of these parameters are optional' +
+                'Please see the expected results depending on given argument types below.');
 
-    it('Should execute inner generators', function (done) {
-        awync(function *() {
-            yield (function *() {
-                done();
-            })();
-        })
-    });
+            comment('Since awaiter function creates object proxies, it caches created proxies to avoid memory leak. ' +
+                'But, you may want to pass caching for some good reasons. In that case, passing `true` for ***@noCache*** ' +
+                'parameter could help you to get what you need');
 
-    it('Should throw error in root generator', function (done) {
-        function *generatorA() {
-            throw new Error("test");
-        }
-        awync(function *() {
-            try{
-                yield generatorA();
-                assert.fail();
-            }catch (err){
-                expect(err.message).to.equal('test');
-            }
-            done();
-        });
-    });
 
-    it('Should execute one by one', function (done) {
-        awync(function *() {
-            var start = Date.now();
-            yield new Promise(resolve => setTimeout(resolve, 100));
-            var phrase = Date.now();
-            yield new Promise(resolve => setTimeout(resolve, 100));
-            var end = Date.now();
-            expect(phrase - start).to.gte(90);
-            expect(end - phrase).to.gte(90);
-            expect(end - start).to.gte(180);
-            done();
-        })
-    });
+            comment('If you call awaiter with a FUNCTION parameter then awaiter will consider that FUNCTION is a ' +
+                'async callbak and it will transform that FUNCTION to a GeneratorFunction.', true);
 
-    it('Should execute parallel', function (done) {
-        var count = 2;
 
-        awync([function *() {
-            setTimeout(function () {
-                count--;
-            }, 100);
-        }, function *() {
-            setTimeout(function () {
-                count--;
-            }, 100);
-        }]);
+            it('awaiter(Function)', function () {
 
-        setTimeout(function () {
-            expect(count).to.equal(0);
-            done();
-        }, 150);
+                const awync = require('../');
+                let generator = awync()(function () {});
 
-    });
-
-    it('Read / write file', function (done) {
-        var await = awync({fs});
-        awync(function *() {
-            var jsonString = JSON.stringify({key:'value'});
-
-            // write the file
-            yield await.fs.writeFile('./file.json', jsonString, 'utf8');
-
-            // read the file
-            var someString = yield await.fs.readFile('./file.json', 'utf8');
-
-            // delete file
-            yield await.fs.unlink('./file.json');
-
-            assert(jsonString === someString);
-
-            // next
-
-            done();
-        })
-    });
-
-    it('Promise test', function (done) {
-        awync(function *() {
-
-            yield new Promise(resolve => {
-                setTimeout(() => {
-                    console.log('This comment will be on 1st line. Date: %s', new Date());
-                    resolve();
-                }, 2500);
+                assert(typeof generator === 'function');
+                assert(generator.length === 0);
+                assert(generator.constructor.name === 'GeneratorFunction');
             });
 
+            it('awaiter(GeneratorFunction)', function () {
 
-            // See the timeout delay below. It is 1500, and the above one is 2500.
-            // But the below one will be executed later
-            yield new Promise(resolve => {
-                setTimeout(() => {
-                    console.log('This comment will be on 2nd line. Date: %s', new Date());
-                    resolve();
-                }, 1500);
+                const awync = require('../');
+                function *generator() {
+
+                }
+                let result = awync()(generator);
+                assert(result === generator);
             });
 
-            yield new Promise(resolve => {
-                setTimeout(() => {
-                    console.log("This comment will be on 3rd line. Date: %s", new Date());
-                    resolve();
-                }, 3000);
+            it('awaiter(Function, Object)', function () {
+
+                const awync = require('../');
+                let target = {};
+                let generator = awync()(function () {
+                    assert(this === target);
+                }, target);
+
+                assert(typeof generator === 'function');
+                assert(generator.length === 0);
+                assert(generator.constructor.name === 'GeneratorFunction');
+                generator().next();
             });
 
-            // next operations...
-            done();
+            it('awaiter(Object)', function () {
+
+                const awync = require('../');
+
+                let host = {
+                    test(){
+                    }
+                };
+
+                let proxy = awync()(host);
+
+                assert(proxy !== host);
+                expect(Object.getOwnPropertyNames(proxy)).to.eql(Object.getOwnPropertyNames(host));
+                assert(proxy.test.constructor.name === 'GeneratorFunction');
+            });
+
+            it('awaiter(Iterable|Primitive|null|undefined)', function () {
+
+                const awaiter = require('../')();
+                assert(awaiter(true) === true);
+                assert(awaiter(1.234) === 1.234);
+                assert(awaiter('test') === 'test');
+                assert(awaiter(void 0) === void 0);
+                assert(awaiter(null) === null);
+
+                var set = new Set();
+                var map = new Map();
+                var array = [];
+
+                assert(awaiter(set) === set);
+                assert(awaiter(map) === map);
+                assert(awaiter(array) === array);
+            });
+
         });
-    }).timeout(8000);
 
-    it('Loop test', function (done) {
-
-        function *generatorA(name, delay = 1000){
-            yield new Promise(resolve => {
-                setTimeout(() => {
-                    console.log('Hello %s on %s', name, new Date());
-                    resolve();
-                }, delay);
-            });
-        }
-
-        function *generatorB(count = 1){
-            yield generatorA('Friend ' + count);
-            yield generatorA('World ' + count);
-        }
+    });
 
 
-        function *generatorC(){
-            for(var i=0; i<5; i++){
-                yield generatorB(i);
-            }
-        }
 
-        awync(function *() {
 
-            yield generatorC();
-
-            // next operations...
-            done();
-        });
-
-    }).timeout(11000);
 });
