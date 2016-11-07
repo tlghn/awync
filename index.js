@@ -228,6 +228,8 @@ awync.callback = callback;
 awync.SUPPRESS_THROW = 1;
 awync.SUPPRESS_REJECT = 2;
 awync.SUPPRESS = 3;
+awync.isGeneratorFunction = isGeneratorFunc;
+awync.isGeneratorObject = isGeneratorObj;
 
 Object.defineProperties(awync, {
     iterator: {
