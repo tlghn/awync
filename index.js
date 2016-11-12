@@ -275,6 +275,13 @@ awync.SUPPRESS_REJECT = 2;
 awync.SUPPRESS = 3;
 awync.isGeneratorFunction = isGeneratorFunc;
 awync.isGeneratorObject = isGeneratorObj;
+awync.sleep = function *(delay) {
+    yield new Promise(function (resolve) {
+        setTimeout(function () {
+            resolve();
+        }, delay);
+    });
+};
 
 
 Object.defineProperties(awync, {
