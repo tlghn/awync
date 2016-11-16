@@ -248,7 +248,7 @@ function awync(a) {
     }
     if(typeof a === 'object' && a !== null){
         if(Array.isArray(a)){
-            return Promise.race(a.map(item => awync(item, error_handling)));
+            return Promise.all(a.map(item => awync(item, error_handling)));
         }
 
         if(typeof a[Symbol.iterator] === 'function'){
