@@ -1,6 +1,6 @@
 {
   "name": "awync",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Lightweight async / await library for NodeJs",
   "main": "index.js",
   "scripts": {

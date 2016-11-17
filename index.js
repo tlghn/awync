@@ -78,6 +78,14 @@ function awaiter(obj, target, noCache) {
 
 const GF = function *() {};
 
+GF.constructor.prototype.awync = function () {
+    return awync(this);
+};
+
+GF.constructor.prototype.prototype.run = function (cb) {
+    run(this, cb || function () {});
+};
+
 function isGeneratorFunc(a) {
     return typeof a === 'function' &&  GF.constructor === a.constructor;
 }
@@ -88,7 +96,7 @@ function isGeneratorObj(a) {
 
 function run(genFunc, complete) {
 
-    var rootObj = genFunc();
+    var rootObj = isGeneratorObj(genFunc) ? genFunc : genFunc();
     var errorHandler = [];
 
     function exit(result) {
